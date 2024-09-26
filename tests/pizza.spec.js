@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { test, expect } from 'playwright-test-coverage';
 
-async function createLoginMock(page, email) {
+async function performLoginAction(page, email) {
   await page.getByPlaceholder('Email address').click();
   await page.getByPlaceholder('Email address').fill(email);
   await page.getByPlaceholder('Email address').press('Tab');
@@ -9,7 +9,7 @@ async function createLoginMock(page, email) {
   await page.getByRole('button', { name: 'Login' }).click();
 }
 
-async function createAuthRouteMock(page, email) {
+async function registerAuthRouteMocks(page, email) {
   await page.route('*/**/api/auth', async (route) => {
     // Register
     if (route.request().method() == 'PUT') {
@@ -19,10 +19,19 @@ async function createAuthRouteMock(page, email) {
       expect(route.request().postDataJSON()).toMatchObject(loginReq);
       await route.fulfill({ json: loginRes });
     // Logout
-    } else {
-      await route.fulfill({ json: {} });
+    } else if (route.request().method() == 'DELETE') {
+      const logoutRes = { message: "" };
+      await route.fulfill({ json: logoutRes });
     }
   });
+}
+
+function getRandomEmail() {
+  return "d@jwt" + randomUUID() + ".com";
+}
+
+function getHostUrl() {
+  return "http://localhost:5173";
 }
 
 test('home page', async ({ page }) => {
@@ -58,14 +67,8 @@ test('purchase with login', async ({ page }) => {
     await route.fulfill({ json: franchiseRes });
   });
 
-  const randomEmailForTest = "d@jwt" + randomUUID() + ".com";
-  await page.route('*/**/api/auth', async (route) => {
-    const loginReq = { email: randomEmailForTest, password: 'a' };
-    const loginRes = { user: { id: 3, name: 'Kai Chen', email: randomEmailForTest, roles: [{ role: 'diner' }] }, token: 'abcdef' };
-    expect(route.request().method()).toBe('PUT');
-    expect(route.request().postDataJSON()).toMatchObject(loginReq);
-    await route.fulfill({ json: loginRes });
-  });
+  const randomEmailForTest = getRandomEmail();
+  await registerAuthRouteMocks(page, randomEmailForTest);
 
   await page.route('*/**/api/order', async (route) => {
     const orderReq = {
@@ -93,7 +96,7 @@ test('purchase with login', async ({ page }) => {
     await route.fulfill({ json: orderRes });
   });
 
-  await page.goto('http://localhost:5173/');
+  await page.goto(getHostUrl());
 
   // Go to order page
   await page.getByRole('button', { name: 'Order now' }).click();
@@ -107,11 +110,7 @@ test('purchase with login', async ({ page }) => {
   await page.getByRole('button', { name: 'Checkout' }).click();
 
   // Login
-  await page.getByPlaceholder('Email address').click();
-  await page.getByPlaceholder('Email address').fill(randomEmailForTest);
-  await page.getByPlaceholder('Email address').press('Tab');
-  await page.getByPlaceholder('Password').fill('a');
-  await page.getByRole('button', { name: 'Login' }).click();
+  await performLoginAction(page, randomEmailForTest);
 
   // Pay
   await expect(page.getByRole('main')).toContainText('Send me those 2 pizzas right now!');
@@ -125,8 +124,8 @@ test('purchase with login', async ({ page }) => {
 });
 
 test('notFoundUrlTest', async ({ page }) => {
-  const nonExistantPageRoute = 'pageRouteThatDoesNotExist';
-  await page.goto(`http://localhost:5173/${nonExistantPageRoute}`);
+  const nonExistantPageRoute = getHostUrl() + '/pageRouteThatDoesNotExist'; + 
+  await page.goto(nonExistantPageRoute);
 
   // Heading Text should say 'Oops'
   await expect(page.getByRole('heading', { name: 'Oops' })).toBeVisible();
@@ -137,35 +136,37 @@ test('notFoundUrlTest', async ({ page }) => {
 });
 
 test('registerLoginTest', async ({ page }) => {
-  await page.goto(`http://localhost:5173/login`);
+  const loginUrl = getHostUrl() + "/login";
+  await page.goto(loginUrl);
 
-  const randomEmailForTest = "d@jwt" + randomUUID() + ".com";
-  await createLoginMock(page, randomEmailForTest);
+  const randomEmailForTest = getRandomEmail();
+  await performLoginAction(page, randomEmailForTest);
 
   // Expect 404 not found error
   await expect(page.getByText(/404/)).toBeVisible();
 
   // Create new User
-  await createAuthRouteMock(page, randomEmailForTest);
+  await registerAuthRouteMocks(page, randomEmailForTest);
 
   // Return to Login Screen and successfully login
-  await page.goto(`http://localhost:5173/login`);
-  await createLoginMock(page, randomEmailForTest);
+  await page.goto(loginUrl);
+  await performLoginAction(page, randomEmailForTest);
 });
 
 test('logoutTest', async ({ page }) => {
-  const randomEmailForTest = "d@jwt" + randomUUID() + ".com";
+  const randomEmailForTest = getRandomEmail();
+  const loginUrl = getHostUrl() + "/login";
 
   // Create new User and Login
-  await createAuthRouteMock(page, randomEmailForTest);
-  await page.goto(`http://localhost:5173/login`);
-  await createLoginMock(page, randomEmailForTest);
+  await registerAuthRouteMocks(page, randomEmailForTest);
+  await page.goto(loginUrl);
+  await performLoginAction(page, randomEmailForTest);
 
   // Logout
   await page.getByRole('link', { name: 'Logout' }).click();
 
   // Expect home page title text
-  await page.goto(`http://localhost:5173`);
+  await page.goto(getHostUrl());
   expect(await page.title()).toBe('JWT Pizza');
 
   // Expect Login Button and Register Buttons to be visible
