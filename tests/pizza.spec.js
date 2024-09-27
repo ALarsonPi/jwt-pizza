@@ -1,38 +1,6 @@
 import { randomUUID } from 'crypto';
 import { test, expect } from 'playwright-test-coverage';
-
-async function performLoginAction(page, email) {
-  await page.getByPlaceholder('Email address').click();
-  await page.getByPlaceholder('Email address').fill(email);
-  await page.getByPlaceholder('Email address').press('Tab');
-  await page.getByPlaceholder('Password').fill('a');
-  await page.getByRole('button', { name: 'Login' }).click();
-}
-
-async function registerAuthRouteMocks(page, email) {
-  await page.route('*/**/api/auth', async (route) => {
-    // Register
-    if (route.request().method() == 'PUT') {
-      const loginReq = { email: email, password: 'a' };
-      const loginRes = { user: { id: 3, name: 'Kai Chen', email: email, roles: [{ role: 'diner' }] }, token: 'abcdef' };
-      expect(route.request().method()).toBe('PUT');
-      expect(route.request().postDataJSON()).toMatchObject(loginReq);
-      await route.fulfill({ json: loginRes });
-    // Logout
-    } else if (route.request().method() == 'DELETE') {
-      const logoutRes = { message: "" };
-      await route.fulfill({ json: logoutRes });
-    }
-  });
-}
-
-function getRandomEmail() {
-  return "d@jwt" + randomUUID() + ".com";
-}
-
-function getHostUrl() {
-  return "http://localhost:5173";
-}
+import { getHostUrl, registerMenuRouteMocks, registerFranchiseRouteMocks, getRandomEmail, registerAuthRouteMocks, registerOrderRouteMocks, performLoginAction, getAdminEmail, getAdminPassword, getFranchiseEmail, getFranchisePassword } from './testUtils';
 
 test('home page', async ({ page }) => {
   await page.goto('/');
@@ -40,65 +8,15 @@ test('home page', async ({ page }) => {
 });
 
 test('purchase with login', async ({ page }) => {
-  await page.route('*/**/api/order/menu', async (route) => {
-    const menuRes = [
-      { id: 1, title: 'Veggie', image: 'pizza1.png', price: 0.0038, description: 'A garden of delight' },
-      { id: 2, title: 'Pepperoni', image: 'pizza2.png', price: 0.0042, description: 'Spicy treat' },
-    ];
-    expect(route.request().method()).toBe('GET');
-    await route.fulfill({ json: menuRes });
-  });
-
-  await page.route('*/**/api/franchise', async (route) => {
-    const franchiseRes = [
-      {
-        id: 2,
-        name: 'LotaPizza',
-        stores: [
-          { id: 4, name: 'Lehi' },
-          { id: 5, name: 'Springville' },
-          { id: 6, name: 'American Fork' },
-        ],
-      },
-      { id: 3, name: 'PizzaCorp', stores: [{ id: 7, name: 'Spanish Fork' }] },
-      { id: 4, name: 'topSpot', stores: [] },
-    ];
-    expect(route.request().method()).toBe('GET');
-    await route.fulfill({ json: franchiseRes });
-  });
-
+  await registerMenuRouteMocks(page);
+  await registerFranchiseRouteMocks(page);
   const randomEmailForTest = getRandomEmail();
-  await registerAuthRouteMocks(page, randomEmailForTest);
-
-  await page.route('*/**/api/order', async (route) => {
-    const orderReq = {
-      items: [
-        { menuId: 1, description: 'Veggie', price: 0.0038 },
-        { menuId: 2, description: 'Pepperoni', price: 0.0042 },
-      ],
-      storeId: '4',
-      franchiseId: 2,
-    };
-    const orderRes = {
-      order: {
-        items: [
-          { menuId: 1, description: 'Veggie', price: 0.0038 },
-          { menuId: 2, description: 'Pepperoni', price: 0.0042 },
-        ],
-        storeId: '4',
-        franchiseId: 2,
-        id: 23,
-      },
-      jwt: 'eyJpYXQ',
-    };
-    expect(route.request().method()).toBe('POST');
-    expect(route.request().postDataJSON()).toMatchObject(orderReq);
-    await route.fulfill({ json: orderRes });
-  });
-
-  await page.goto(getHostUrl());
+  const randomPasswordForTest = randomUUID();
+  await registerAuthRouteMocks(page, randomEmailForTest, randomPasswordForTest);
+  await registerOrderRouteMocks(page);
 
   // Go to order page
+  await page.goto(getHostUrl());
   await page.getByRole('button', { name: 'Order now' }).click();
 
   // Create order
@@ -110,7 +28,7 @@ test('purchase with login', async ({ page }) => {
   await page.getByRole('button', { name: 'Checkout' }).click();
 
   // Login
-  await performLoginAction(page, randomEmailForTest);
+  await performLoginAction(page, randomEmailForTest, randomPasswordForTest);
 
   // Pay
   await expect(page.getByRole('main')).toContainText('Send me those 2 pizzas right now!');
@@ -140,27 +58,29 @@ test('registerLoginTest', async ({ page }) => {
   await page.goto(loginUrl);
 
   const randomEmailForTest = getRandomEmail();
-  await performLoginAction(page, randomEmailForTest);
+  const randomPasswordForTest = randomUUID();
+  await performLoginAction(page, randomEmailForTest, randomPasswordForTest);
 
   // Expect 404 not found error
   await expect(page.getByText(/404/)).toBeVisible();
 
   // Create new User
-  await registerAuthRouteMocks(page, randomEmailForTest);
+  await registerAuthRouteMocks(page, randomEmailForTest, randomPasswordForTest);
 
   // Return to Login Screen and successfully login
   await page.goto(loginUrl);
-  await performLoginAction(page, randomEmailForTest);
+  await performLoginAction(page, randomEmailForTest, randomPasswordForTest);
 });
 
 test('logoutTest', async ({ page }) => {
   const randomEmailForTest = getRandomEmail();
+  const randomPasswordForTest = getRandomEmail();
   const loginUrl = getHostUrl() + "/login";
 
   // Create new User and Login
-  await registerAuthRouteMocks(page, randomEmailForTest);
+  await registerAuthRouteMocks(page, randomEmailForTest, randomPasswordForTest);
   await page.goto(loginUrl);
-  await performLoginAction(page, randomEmailForTest);
+  await performLoginAction(page, randomEmailForTest, randomPasswordForTest);
 
   // Logout
   await page.getByRole('link', { name: 'Logout' }).click();
@@ -172,6 +92,61 @@ test('logoutTest', async ({ page }) => {
   // Expect Login Button and Register Buttons to be visible
   await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Register' })).toBeVisible();
+});
+
+test('historyTest', async ({ page }) => {
+  const historyUrl = getHostUrl() + "/history";
+  await page.goto(historyUrl);
+  await expect(page.locator('body')).toContainText('Mama Rucci, my my');
+
+  // Find the navigation helper that has home -> history, ensure it's correct
+  const navigationStack = page.locator('ol.flex.items-center');
+  await expect(navigationStack.locator('li:nth-child(1)')).toContainText('home');
+  await expect(navigationStack.locator('li:nth-child(2)')).toContainText('history');
+});
+
+test('aboutTest', async ({ page }) => {
+  const aboutUrl = getHostUrl() + "/about";
+  await page.goto(aboutUrl);
+  await expect(page.locator('body')).toContainText('The secret sauce');
+
+  // Find the navigation helper that has home -> history, ensure it's correct
+  const navigationStack = page.locator('ol.flex.items-center');
+  await expect(navigationStack.locator('li:nth-child(1)')).toContainText('home');
+  await expect(navigationStack.locator('li:nth-child(2)')).toContainText('about');
+
+  // Ensure all team members are displayed
+  const numTeamMembers = 4;
+  const allTeamImages = await page.$$('img.rounded-full');
+  expect(allTeamImages.length).toBe(numTeamMembers);
+});
+
+test('docsTest', async ({ page }) => {
+  const docsUrl = getHostUrl() + "/docs";
+  await page.goto(docsUrl);
+
+  // Find the navigation helper that has home -> docs, ensure it's correct
+  const navigationStack = page.locator('ol.flex.items-center');
+  await expect(navigationStack.locator('li:nth-child(1)')).toContainText('home');
+  await expect(navigationStack.locator('li:nth-child(2)')).toContainText('docs');
+
+  // Page is up and running and devs can see the APIs
+  await expect(page.locator('body')).toContainText('JWT Pizza API');
+});
+
+test('registerNewUserTest', async ({ page }) => {
+  const registerUrl = getHostUrl() + "/register";
+  await page.goto(registerUrl);
+
+  const fullName = "James Madison " + randomUUID();
+  await page.getByPlaceholder('Full name').fill(fullName);
+
+  const randomEmailForTest = getRandomEmail();
+  await page.getByPlaceholder('Email address').fill(randomEmailForTest);
+
+  const randomPassword = randomUUID();
+  await page.getByPlaceholder('Password').fill(randomPassword);
+  await page.getByRole('button', { name: 'Register' }).click();
 });
 
 
