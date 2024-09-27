@@ -81,6 +81,91 @@ export async function registerFranchiseRouteMocks(page) {
     });
 }
 
+export async function registerEmptyFranchiseRouteMocks(page, newFranchiseName) {
+    await page.route('*/**/api/franchise', async (route) => {
+        if (route.request().method() == 'POST') {
+            const franchiseRes = { name: newFranchiseName, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 };
+            await route.fulfill({ json: franchiseRes });
+        } else if (route.request().method() == 'GET') {
+            const franchiseRes = [];
+            await route.fulfill({ json: franchiseRes });
+        }
+    });
+}
+
+export async function registerCreateStoreOrDeleteFranchiseMocks(page) {
+    await page.route('*/**/api/franchise/*', async (route) => {
+        // Delete Franchise or Store
+        if (route.request().method() == 'DELETE') {
+            const response = { message: 'deleted' };
+            await route.fulfill({ json: response });
+        // Create New Store
+        } else if (route.request().method() == 'POST') {
+            const response = { id: 1, franchiseId: 1, name: 'SLC' };
+            await route.fulfill({ json: response });
+        }
+    });
+}
+
+export async function registerDeleteStoreMock(page) {
+    await page.route('*/**/api/franchise/*/store/*', async (route) => {
+        if (route.request().method() == 'DELETE') {
+            const response = { message: 'deleted' };
+            await route.fulfill({ json: response });
+        } 
+    });
+}   
+
+
+export async function registerJustCreatedFranchiseMock(page, newFranchiseName) {
+    await page.route('*/**/api/franchise', async (route) => {
+        if (route.request().method() == 'POST') {
+            const franchiseRes = { name: newFranchiseName, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 };
+            await route.fulfill({ json: franchiseRes });
+        } else if (route.request().method() == 'GET') {
+            const stores = [];
+            const franchiseRes = [
+                { name: newFranchiseName, stores: stores, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 },
+            ];
+            await route.fulfill({ json: franchiseRes });
+        }
+    });
+    await page.route('*/**/api/franchise', async (route) => {
+        if (route.request().method() == 'POST') {
+            const franchiseRes = { name: newFranchiseName, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 };
+            await route.fulfill({ json: franchiseRes });
+        } else if (route.request().method() == 'GET') {
+            const stores = [
+                { id: 5, name: 'Springville',  totalRevenue: '0.67' },
+                { id: 6, name: 'American Fork',  totalRevenue: '0.71'},
+            ];
+            const franchiseRes = [
+                { name: newFranchiseName, stores: stores, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 },
+            ];
+            await route.fulfill({ json: franchiseRes });
+        }
+    });
+}
+
+export async function registerFranchiseWithStoresMock(page, newFranchiseName) {
+    await page.route('*/**/api/franchise', async (route) => {
+        if (route.request().method() == 'POST') {
+            const franchiseRes = { name: newFranchiseName, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 };
+            await route.fulfill({ json: franchiseRes });
+        } else if (route.request().method() == 'GET') {
+            const stores = [
+                { id: 4, name: 'Lehi', totalRevenue: '0.61' },
+                { id: 5, name: 'Springville',  totalRevenue: '0.67' },
+                { id: 6, name: 'American Fork',  totalRevenue: '0.71'},
+            ];
+            const franchiseRes = [
+                { name: newFranchiseName, stores: stores, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 },
+            ];
+            await route.fulfill({ json: franchiseRes });
+        }
+    });
+}
+
 export async function registerOrderRouteMocks(page) {
     await page.route('*/**/api/order', async (route) => {
         const orderReq = {
