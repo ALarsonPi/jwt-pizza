@@ -125,7 +125,7 @@ test('closeStoreTest', async ({ page }) => {
     await expectedStoreCloseButton.click();
 
     // Actually close it
-    await registerDeleteStoreMock(page);
+    await registerDeleteStoreMock(page, newFranchiseName);
     await page.getByRole('button', { name: 'Close' }).click();
 
     // Franchise should still be there, but not the store

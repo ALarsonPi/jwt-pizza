@@ -107,12 +107,27 @@ export async function registerCreateStoreOrDeleteFranchiseMocks(page) {
     });
 }
 
-export async function registerDeleteStoreMock(page) {
+export async function registerDeleteStoreMock(page, newFranchiseName) {
     await page.route('*/**/api/franchise/*/store/*', async (route) => {
         if (route.request().method() == 'DELETE') {
             const response = { message: 'deleted' };
             await route.fulfill({ json: response });
         } 
+    });
+    await page.route('*/**/api/franchise', async (route) => {
+        if (route.request().method() == 'POST') {
+            const franchiseRes = { name: newFranchiseName, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 };
+            await route.fulfill({ json: franchiseRes });
+        } else if (route.request().method() == 'GET') {
+            const stores = [
+                { id: 5, name: 'Springville',  totalRevenue: '0.67' },
+                { id: 6, name: 'American Fork',  totalRevenue: '0.71'},
+            ];
+            const franchiseRes = [
+                { name: newFranchiseName, stores: stores, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 },
+            ];
+            await route.fulfill({ json: franchiseRes });
+        }
     });
 }   
 
@@ -124,21 +139,6 @@ export async function registerJustCreatedFranchiseMock(page, newFranchiseName) {
             await route.fulfill({ json: franchiseRes });
         } else if (route.request().method() == 'GET') {
             const stores = [];
-            const franchiseRes = [
-                { name: newFranchiseName, stores: stores, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 },
-            ];
-            await route.fulfill({ json: franchiseRes });
-        }
-    });
-    await page.route('*/**/api/franchise', async (route) => {
-        if (route.request().method() == 'POST') {
-            const franchiseRes = { name: newFranchiseName, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 };
-            await route.fulfill({ json: franchiseRes });
-        } else if (route.request().method() == 'GET') {
-            const stores = [
-                { id: 5, name: 'Springville',  totalRevenue: '0.67' },
-                { id: 6, name: 'American Fork',  totalRevenue: '0.71'},
-            ];
             const franchiseRes = [
                 { name: newFranchiseName, stores: stores, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 },
             ];
