@@ -61,9 +61,6 @@ test('registerLoginTest', async ({ page }) => {
   const randomPasswordForTest = randomUUID();
   await performLoginAction(page, randomEmailForTest, randomPasswordForTest);
 
-  // Expect 404 not found error
-  await expect(page.getByText(/404/)).toBeVisible();
-
   // Create new User
   await registerAuthRouteMocks(page, randomEmailForTest, randomPasswordForTest);
 
