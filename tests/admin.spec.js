@@ -103,7 +103,6 @@ test('closeStoreTest', async ({ page }) => {
     const newFranchiseName = "MY NEW FRANCHISE";
     await loginAndNavigateToAdmin(page, newFranchiseName);
 
-    // await openFranchise(page, newFranchiseName);
     const addFranchiseButton = await page.getByRole('button', { name: 'Add Franchise' });
     await expect(addFranchiseButton).toBeVisible();
     await addFranchiseButton.click();

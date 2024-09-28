@@ -38,7 +38,7 @@ export async function registerAuthRouteMocks(page, email, password, role='diner'
         // Register
         if (route.request().method() == 'PUT') {
         const loginReq = { email: email, password: password };
-        const loginRes = { user: { id: 3, name: 'Kai Chen', email: email, roles: [{ role: role }] }, token: 'abcdef' };
+        const loginRes = { user: { id: 3, name: 'Kai Chen', email: email, roles: [{ role: role, objectId: '12345' }] }, token: 'abcdef' };
         expect(route.request().method()).toBe('PUT');
         expect(route.request().postDataJSON()).toMatchObject(loginReq);
         await route.fulfill({ json: loginRes });
@@ -81,6 +81,22 @@ export async function registerFranchiseRouteMocks(page) {
     });
 }
 
+export async function registerUsersFranchises(page, newFranchiseName) {
+    await page.route('*/**/api/franchise/*', async (route) => {
+        if (route.request().method() == 'GET') {
+            const stores = [
+                { id: 4, name: 'Lehi', totalRevenue: '0.61' },
+                { id: 5, name: 'Springville',  totalRevenue: '0.67' },
+                { id: 6, name: 'American Fork',  totalRevenue: '0.71'},
+            ];
+            const franchiseRes = [
+                { name: newFranchiseName, stores: stores, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 },
+            ];           
+            await route.fulfill({ json: franchiseRes });
+        }
+    });
+}
+
 export async function registerEmptyFranchiseRouteMocks(page, newFranchiseName) {
     await page.route('*/**/api/franchise', async (route) => {
         if (route.request().method() == 'POST') {
@@ -107,26 +123,32 @@ export async function registerCreateStoreOrDeleteFranchiseMocks(page) {
     });
 }
 
-export async function registerDeleteStoreMock(page, newFranchiseName) {
+export async function registerDeleteStoreMock(page, franchiseName) {
     await page.route('*/**/api/franchise/*/store/*', async (route) => {
         if (route.request().method() == 'DELETE') {
             const response = { message: 'deleted' };
             await route.fulfill({ json: response });
         } 
     });
+
+    const stores = [
+        { id: 5, name: 'Springville',  totalRevenue: '0.67' },
+        { id: 6, name: 'American Fork',  totalRevenue: '0.71'},
+    ];
+    const removedStoreFrranchiseRes = [
+        { name: franchiseName, stores: stores, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 },
+    ];
     await page.route('*/**/api/franchise', async (route) => {
         if (route.request().method() == 'POST') {
-            const franchiseRes = { name: newFranchiseName, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 };
+            const franchiseRes = { name: franchiseName, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 };
             await route.fulfill({ json: franchiseRes });
         } else if (route.request().method() == 'GET') {
-            const stores = [
-                { id: 5, name: 'Springville',  totalRevenue: '0.67' },
-                { id: 6, name: 'American Fork',  totalRevenue: '0.71'},
-            ];
-            const franchiseRes = [
-                { name: newFranchiseName, stores: stores, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 },
-            ];
-            await route.fulfill({ json: franchiseRes });
+            await route.fulfill({ json: removedStoreFrranchiseRes });
+        }
+    });
+    await page.route('*/**/api/franchise/*', async (route) => {
+        if (route.request().method() == 'GET') {
+            await route.fulfill({ json: removedStoreFrranchiseRes });
         }
     });
 }   
