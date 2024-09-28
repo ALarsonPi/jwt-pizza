@@ -1,5 +1,5 @@
 import { test, expect } from 'playwright-test-coverage';
-import { getHostUrl, registerJustCreatedFranchiseMock, registerUsersFranchises, registerEmptyFranchiseRouteMocks, registerAuthRouteMocks, performLoginAction, getAdminEmail, getAdminPassword, getFranchiseEmail, registerCreateStoreOrDeleteFranchiseMocks, registerFranchiseWithStoresMock, registerDeleteStoreMock, getFranchisePassword } from './testUtils';
+import { getHostUrl, registerCreateStoreMock, registerUsersFranchises, registerAuthRouteMocks, performLoginAction, getFranchiseEmail, registerDeleteStoreMock, getFranchisePassword } from './testUtils';
 
 async function loginAsFranchisee(page) {
     const franchiseEmail = getFranchiseEmail();
@@ -52,6 +52,32 @@ test('closeStoreAsFranchiseeTest', async ({ page }) => {
 
     // Store should be gone
     await expect(page.locator('body')).not.toContainText(expectedStoreName);  
+});
+
+test('createStoreAsFranchisee', async ({ page }) => {
+    const franchiseName = "MY FRANCHISE";
+    await loginAndNavigateToFranchise(page, franchiseName);
+
+    // New store shouldn't be here yet
+    const expectedStoreName = "JamesTown";
+    await expect(page.locator('body')).not.toContainText(expectedStoreName);
+
+    const expectedCreateStoreButton = await page.getByRole('button', {name: "Create store"});
+    await expectedCreateStoreButton.click();
+
+    // Cancel, return to admin dashboard
+    await page.getByRole('button', { name: 'Cancel' }).click();
+
+    // Click Close on the store (again)
+    await expectedCreateStoreButton.click();
+
+    // Actually close it
+    await registerCreateStoreMock(page, franchiseName, expectedStoreName);
+    await page.getByPlaceholder("store name").fill(expectedStoreName);
+    await page.getByRole('button', { name: 'Create' }).click();
+
+    // Store should now be on the screen
+    await expect(page.locator('body')).toContainText(expectedStoreName);  
 });
 
 test('viewProfileAsFranchisee', async ({ page }) => {

@@ -123,6 +123,30 @@ export async function registerCreateStoreOrDeleteFranchiseMocks(page) {
     });
 }
 
+export async function registerCreateStoreMock(page, newFranchiseName, newStoreName) {
+    const newStore = { id: 27, name: newStoreName, totalRevenue: '0.00' };
+    await page.route('*/**/api/franchise/*/store', async (route) => {
+        if (route.request().method() == 'POST') {
+            await route.fulfill({ json: newStore });
+        } 
+    });
+
+    const stores = [
+        { id: 4, name: 'Lehi', totalRevenue: '0.61' },
+        { id: 5, name: 'Springville',  totalRevenue: '0.67' },
+        { id: 6, name: 'American Fork',  totalRevenue: '0.71'},
+        newStore
+    ];
+    const franchiseRes = [
+        { name: newFranchiseName, stores: stores, admins: [{ email: getFranchiseEmail(), id: 4, name: 'pizza franchisee' }], id: 1 },
+    ];
+    await page.route('*/**/api/franchise/*', async (route) => {
+        if (route.request().method() == 'GET') {
+            await route.fulfill({ json: franchiseRes });
+        }
+    });
+}
+
 export async function registerDeleteStoreMock(page, franchiseName) {
     await page.route('*/**/api/franchise/*/store/*', async (route) => {
         if (route.request().method() == 'DELETE') {
