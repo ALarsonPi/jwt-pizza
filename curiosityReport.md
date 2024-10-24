@@ -22,17 +22,19 @@ A few things I learned along the way
 Firebase used to allow for something like this:
 `myApiKey = firebase.functions.config().configVar.apiKey`
 
-But the system for holding those ENV vars has changed dramatically. Now one has to add a line like this:
+But the system for holding those ENV vars has changed dramatically. Now there are all kinds of ENV variables and types. Params and Secrets can be configured in the CLI or in a .env file. 
+
+I ended up doing something like this:
 `const myApiKeyFromEnv = defineSecret('API_KEY');
  const actualApiKey = myApiKeyFromEnv.value()`
-and this command: `firebase functions:secrets:set API_KEY`
+and this command: `CLI: firebase functions:secrets:set API_KEY`
 
 It took me a bit to figure out why set secrets:set command wasn't working. Turns out, I had an outdated npm CLI version. So I had to get my SDK and CLI back in sync before I could set the secrets and use them in my code.
 
  ### Typescript -> Javascript
 Everytime I run into a format of typescript I'm not familiar with, I get a bit nervous. Instead of having `export class MyClass` the code could just have a `module.export = MyClass` and the difference between `require('package') from 'package_source'` rather than `import package from 'package_source'`
 
-I also learned that the `firebase-admin` package (needed to access the ENV from above) has `#private` tags throughout which only work in certain versions of node. So I learned how to set my version of node and the typescript target (in this case ES2022). 
+I also learned that the `firebase-admin` package (needed to access the ENV from above) has `#private` tags throughout which only work in certain versions of node. So I learned how to set my version of node and the typescript target (in this case ES2022). This made it a bit difficult to test since when I tried to compile, the compilation would fail due to the third party packages imported.
 
 ### Mail Servers
 Something I was mainly curious about for this project was how mail servers work. Why do we need them? Where are they hosted? Which should be used?
@@ -46,14 +48,17 @@ One problem though: every email went straight to SPAM. Since the point of sendin
 ### Connecting MailGun to my own Domain
 I ended up learning a lot more about CNAME records, MX Mail records, and TXT records as well. I also learned that Mail Servers have a trust system and that if enough people mark mail from your website as SPAM these Mail Servers will stop trusting your website and will start to auto-direct mail to SPAM instead of people's main inbox. To avoid the danger of making one's main domain untrustworthy, mailgun recommended I create a subdomain to send my emails from.
 
-To prove your domain is trustworthy, you have to have a CNAME pointing to mailgun, some MX Mail records which allow incoming mail, and some TXT records which held some info about the subdomain, and held an RSA encryption key so that messages sent in the server would be protected by encryption along the way.
+To prove your domain is trustworthy, you have to have a CNAME pointing to mailgun, some MX Mail records which allow incoming mail, and some TXT records which held some info about the subdomain, and held an RSA encryption key so that messages sent in the server would be protected by encryption along the way. Apparently, the MX records add even more trust for the email servers (even if we don't receive emails at that address) since the servers will ping the server to see which ones can both send and receive.
 
 After setting that all up, I added my last code change to the repo and pushed it - excited to see my email server get an email right to the top of my inbox, perfectly trusted.
 
 HOWEVER...
 
 ### Security Leaks
-Turns out that despite my best efforts to ensure that my keys remained in secrets and didn't make it into source control, a seemingly innocent file called Firebase-debug.logs was added to source control and had within it every key I had been trying to protect. As soon as that file got committed instead of seeing my own email in my inbox, I saw a swarm of GitGuardian emails informing me of a leak. My MailGun account detected these and immediately disabled my account - demanding that I fix the breach before I could send any more emails.
+Turns out that despite my best efforts to ensure that my keys remained in secrets and didn't make it into source control, a seemingly innocent file called `firebase-debug.logs` was added to source control and had within it every key I had been trying to protect. As soon as that file got committed instead of seeing my own email in my inbox, I saw a swarm of GitGuardian emails informing me of a leak. My MailGun account detected these and immediately disabled my account - demanding that I fix the breach before I could send any more emails.
+
+A few back and forth security measures (password resets, 2 Factor, rehashes) and an IT ticket to unsuspend my account later, I re-ran my code and lo and behold:
+An email came through into my inbox as expected.
 
 
 
