@@ -58,7 +58,7 @@ HOWEVER...
 Turns out that despite my best efforts to ensure that my keys remained in secrets and didn't make it into source control, a seemingly innocent file called `firebase-debug.logs` was added to source control and had within it every key I had been trying to protect. As soon as that file got committed instead of seeing my own email in my inbox, I saw a swarm of GitGuardian emails informing me of a leak. My MailGun account detected these and immediately disabled my account - demanding that I fix the breach before I could send any more emails.
 
 A few back and forth security measures (password resets, 2 Factor, rehashes) and an IT ticket to unsuspend my account later, I re-ran my code and lo and behold:
-An email came through into my inbox as expected.
+An email came through into my inbox as expected. And now instead of having to send a text to my wife telling her I updated our chore chart, the process was automated and an email automatically comes through.
 
 
 
