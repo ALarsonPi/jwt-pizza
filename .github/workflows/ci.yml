@@ -100,6 +100,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       version: ${{needs.build.outputs.version}}
+    environment:
+      name: staging
+      url: https://stage-pizza.virtual-pizza.click
     steps:
       - name: Create staging release
         uses: ncipollo/release-action@v1
